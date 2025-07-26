@@ -5,10 +5,11 @@ without any format transformations.
 """
 import json
 import logging
+from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends
 
-from .auth import authenticate_user
-from .google_api_client import send_gemini_request, build_gemini_payload_from_native
+from .auth import authenticate_user, get_current_session
+from .google_api_client import get_google_api_client, build_gemini_payload_from_native
 from .config import SUPPORTED_MODELS
 
 router = APIRouter()
@@ -49,7 +50,12 @@ async def gemini_list_models(request: Request, username: str = Depends(authentic
 
 
 @router.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def gemini_proxy(request: Request, full_path: str, username: str = Depends(authenticate_user)):
+async def gemini_proxy(
+    request: Request,
+    full_path: str,
+    username: str = Depends(authenticate_user),
+    session: tuple = Depends(get_current_session)
+):
     """
     Native Gemini API proxy endpoint.
     Handles all native Gemini API calls by proxying them directly to Google's API.
@@ -60,6 +66,8 @@ async def gemini_proxy(request: Request, full_path: str, username: str = Depends
     - /v1/models/{model}/generateContent
     - etc.
     """
+    creds, project_id = session
+    google_api_client = get_google_api_client()
     
     try:
         # Get the request body
@@ -110,7 +118,7 @@ async def gemini_proxy(request: Request, full_path: str, username: str = Depends
         gemini_payload = build_gemini_payload_from_native(incoming_request, model_name)
         
         # Send the request to Google API
-        response = send_gemini_request(gemini_payload, is_streaming=is_streaming)
+        response = google_api_client.send_request(gemini_payload, creds=creds, project_id=project_id, is_streaming=is_streaming)
         
         # Log the response status
         if hasattr(response, 'status_code'):
@@ -134,10 +142,10 @@ async def gemini_proxy(request: Request, full_path: str, username: str = Depends
             media_type="application/json"
         )
 
-
-def _extract_model_from_path(path: str) -> str:
+def _extract_model_from_path(path: str) -> Optional[str]:
     """
     Extract the model name from a Gemini API path.
+    
     
     Examples:
     - "v1beta/models/gemini-1.5-pro/generateContent" -> "gemini-1.5-pro"

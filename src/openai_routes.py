@@ -10,29 +10,32 @@ import logging
 from fastapi import APIRouter, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 
-from .auth import authenticate_user
+from .auth import authenticate_user, get_current_session
 from .models import OpenAIChatCompletionRequest
 from .openai_transformers import (
     openai_request_to_gemini,
     gemini_response_to_openai,
     gemini_stream_chunk_to_openai
 )
-from .google_api_client import send_gemini_request, build_gemini_payload_from_openai
+from .google_api_client import get_google_api_client, build_gemini_payload_from_openai
 
 router = APIRouter()
 
 
 @router.post("/v1/chat/completions")
 async def openai_chat_completions(
-    request: OpenAIChatCompletionRequest, 
-    http_request: Request, 
-    username: str = Depends(authenticate_user)
+    request: OpenAIChatCompletionRequest,
+    http_request: Request,
+    username: str = Depends(authenticate_user),
+    session: tuple = Depends(get_current_session)
 ):
     """
     OpenAI-compatible chat completions endpoint.
     Transforms OpenAI requests to Gemini format, sends to Google API,
     and transforms responses back to OpenAI format.
     """
+    creds, project_id = session
+    google_api_client = get_google_api_client()
     
     try:
         logging.info(f"OpenAI chat completion request: model={request.model}, stream={request.stream}")
@@ -61,7 +64,7 @@ async def openai_chat_completions(
         # Handle streaming response
         async def openai_stream_generator():
             try:
-                response = send_gemini_request(gemini_payload, is_streaming=True)
+                response = google_api_client.send_request(gemini_payload, creds=creds, project_id=project_id, is_streaming=True)
                 
                 if isinstance(response, StreamingResponse):
                     response_id = "chatcmpl-" + str(uuid.uuid4())
@@ -71,6 +74,9 @@ async def openai_chat_completions(
                         if isinstance(chunk, bytes):
                             chunk = chunk.decode('utf-8', "ignore")
                         
+                        if not isinstance(chunk, str):
+                            continue
+
                         if chunk.startswith('data: '):
                             try:
                                 # Parse the Gemini streaming chunk
@@ -161,7 +167,7 @@ async def openai_chat_completions(
     else:
         # Handle non-streaming response
         try:
-            response = send_gemini_request(gemini_payload, is_streaming=False)
+            response = google_api_client.send_request(gemini_payload, creds=creds, project_id=project_id, is_streaming=False)
             
             if isinstance(response, Response) and response.status_code != 200:
                 # Handle error responses from Google API

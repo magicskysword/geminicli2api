@@ -78,3 +78,6 @@ Thumbs.db
 
 # Logs
 *.log
+*oauth_creds.json
+credentials/
+project_ids.json

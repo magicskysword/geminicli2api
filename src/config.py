@@ -3,6 +3,7 @@ Configuration constants for the Geminicli2api proxy server.
 Centralizes all configuration to avoid duplication across modules.
 """
 import os
+from pathlib import Path
 
 # API Endpoints
 CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
@@ -20,8 +21,12 @@ SCOPES = [
 ]
 
 # File Paths
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CREDENTIAL_FILE = os.path.join(SCRIPT_DIR, os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "oauth_creds.json"))
+# Use pathlib for robust path resolution, independent of the current working directory.
+# PROJECT_ROOT is the absolute path to the directory containing the 'src' folder.
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+
+GEMINI_CREDENTIALS_PATH = os.getenv('GEMINI_CREDENTIALS_PATH', str(PROJECT_ROOT / 'credentials'))
+CREDENTIAL_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(PROJECT_ROOT / "oauth_creds.json"))
 
 # Authentication
 GEMINI_AUTH_PASSWORD = os.getenv("GEMINI_AUTH_PASSWORD", "123456")

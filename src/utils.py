@@ -29,7 +29,10 @@ def get_platform_string():
     else:
         return "PLATFORM_UNSPECIFIED"
 
-def get_client_metadata(project_id=None):
+def get_client_metadata(creds, project_id=None):
+    """Gets the client metadata for API requests."""
+    # creds object is now passed directly to this function.
+    token = creds.token if creds else ""
     return {
         "ideType": "IDE_UNSPECIFIED",
         "platform": get_platform_string(),
