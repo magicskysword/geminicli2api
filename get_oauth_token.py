@@ -111,10 +111,11 @@ def main():
                 print(f"{'='*80}\n")
                 
                 # Wait for the callback
-                server.handle_request()
-                
+                _OAuthCallbackHandler.auth_code = None  # Reset before waiting
+                print("Waiting for authorization callback...")
+                while not _OAuthCallbackHandler.auth_code:
+                    server.handle_request()
                 auth_code = _OAuthCallbackHandler.auth_code
-                _OAuthCallbackHandler.auth_code = None  # Reset for the next iteration
 
                 if not auth_code:
                     logging.error(f"Failed to retrieve authorization code for project '{project_id}'. Skipping.")
