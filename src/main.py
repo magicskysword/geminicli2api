@@ -2,9 +2,6 @@ import logging
 import os
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from .gemini_routes import router as gemini_router
-from .openai_routes import router as openai_router
-from .google_api_client import get_google_api_client
 
 # Load environment variables from .env file
 try:
@@ -15,6 +12,10 @@ except ImportError:
     pass
 except Exception as e:
     pass
+
+from .gemini_routes import router as gemini_router
+from .openai_routes import router as openai_router
+from .google_api_client import get_google_api_client
 
 app = FastAPI()
 
